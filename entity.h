@@ -23,6 +23,7 @@ public:
     void addMenuPoitner(Window* menu);
     void select();
     void initEntity();
+    void move(qreal dt);
     // functions
 
     void transform(QMatrix4x4 *modelview, int transformations = Rotate | Scale | Translate);
@@ -44,6 +45,8 @@ public:
     QVector3D velocity;
     QVector3D rotation;
     QVector3D scale;
+
+    qreal mass;
 
     qreal health;
     Entity* currentTarget;

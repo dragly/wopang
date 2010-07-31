@@ -52,6 +52,10 @@ void Entity::setWaypoints(QList<Node*> waypoints) {
     }
 }
 
+void Entity::move(qreal dt) {
+    position = position + velocity * dt;
+}
+
 void Entity::addMenuPoitner(Window* menu) {
     this->menu = menu;
 }

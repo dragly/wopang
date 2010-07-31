@@ -16,22 +16,22 @@
 //    Some parts of the code might still be from Nokia's Qt examples
 //    and are of course Copyright (C) Nokia and/or its subsidiary(-ies).
 
- #ifndef MAINWINDOW_H
- #define MAINWINDOW_H
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
 
- #include <QMainWindow>
+#include <QMainWindow>
 
- class QSlider;
- class GLWidget;
+class QSlider;
+class GLWidget;
 
- class MainWindow : public QMainWindow
- {
-     Q_OBJECT
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
 
- public:
-     MainWindow();
+public:
+    MainWindow();
 
- private:
- };
+private:
+};
 
- #endif
+#endif

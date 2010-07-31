@@ -21,6 +21,8 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
+
+#include <QAccelerometer>
 #include <QtOpenGL>
 #include <QtGui/qvector3d.h>
 #include <QtGui/qmatrix4x4.h>
@@ -29,6 +31,8 @@
 #include <QVector>
 //#include <Phonon/MediaObject>
 #include "model.h"
+
+QTM_USE_NAMESPACE
 
 class Ui;
 class Bubble;
@@ -62,7 +66,8 @@ public:
     // Sounds
     SoundThread *soundThread;
     QString sndExplosion;
-    // end sounds
+    // Sensors
+    QAccelerometer *accelerometer;
 signals:
     void playSound(QString sample);
 protected:
@@ -73,6 +78,7 @@ private:
     QVector3D rotation;
     QVector3D momentum;
     void createEnemy();
+    void createCoin();
     void initEnemies();
     void resetGame();
     void resetEnemy(Entity* enemy);
@@ -88,23 +94,22 @@ private:
     QTime explosionSoundTime; // time since last explosion sound
     qreal aspectRatio;
     QVector3D camera;
+    // Mouse
     QVector3D pressCursor;
     QVector3D dragCursor;
     QVector3D offset;
     QVector3D pressOffset;
     QVector3D lastDragOffset;
+    // Painting
     QMatrix4x4 mainModelView;
-//    GLint gluUnProject(GLdouble winx, GLdouble winy, GLdouble winz,
-//                 const GLdouble model[16], const GLdouble proj[16],
-//                 const GLint viewport[4],
-//                 GLdouble * objx, GLdouble * objy, GLdouble * objz);
-//    GLboolean invert_matrix(const GLdouble * m, GLdouble * out);
-//    void matmul(GLdouble * product, const GLdouble * a, const GLdouble * b);
-//    void transform_point(GLdouble out[4], const GLdouble m[16], const GLdouble in[4]);
+    // Physics
+    QVector3D gravity;
+    // Game data
     QList<Entity*> enemies;
     QList<Entity*> units;
     QList<Entity*> buildings;
     QList<Entity*> bullets;
+    QList<Entity*> coins;
 
     QList<Node*> nodes; // should probably have their own class - using Entity for convenience
     QHash<Node*, QList<Node*> > nodeNeighbors;
@@ -114,6 +119,7 @@ private:
     Entity* testUnit;
 //    QHash<Entity*, QVector3D> bulletTargets;
     Entity* selectedUnit;
+    Entity* ball;
     Model *monkeyModel;
     Model *boxModel;
     Model *cannonModel;
