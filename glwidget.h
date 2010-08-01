@@ -54,9 +54,11 @@ public:
     ~GLWidget();
 
     enum Team {TeamHumans, TeamEnemies};
+    enum GameState {GameMenu, GameStarted, GameOver};
     QVector3D unProject(int x, int y);
     QVector3D unProject(int x, int y, QVector3D oldOffset);
     QPoint project(QVector3D position);
+    void startGame();
 
     static const qreal MaxHealth = 100.0;
     static const int MapSize = 30; // 2n x 2n nodes
@@ -133,7 +135,7 @@ private:
     Model *mdlBall;
 
     QVector3D *lightPos;
-    bool gameOver;
+    int gameState;
     qreal gameOverTime;
     qreal lastFrameTime;
     QPoint dragLastPosition;

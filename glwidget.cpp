@@ -141,7 +141,7 @@ void GLWidget::resetGame() {
 //    regenerateNodes();
     // init all to zero (also avoids memory failures)
     lastFrameTime = 0.0;
-    gameOver = false;
+    gameState = GameMenu;
     dragging = false;
     inUi = false;
     frames = 0;
@@ -184,6 +184,10 @@ void GLWidget::initEnemies() {
     for(int i = 0; i < NumberOfEnemies; i++) {
         createEnemy();
     }
+}
+
+void GLWidget::startGame() {
+    gameState = GameStarted;
 }
 
 void GLWidget::resetEnemy(Entity* enemy) {
@@ -296,7 +300,18 @@ void GLWidget::paintGL()
     QAccelerometerReading *reading = accelerometer->reading();
     gravity = QVector3D(-reading->x(), -reading->y(), 0);
     QVector3D ballAcceleration;
-    if(!gameOver) { // do logic
+    switch(gameState) {
+    case GameMenu:
+        QPainter painter;
+        painter.begin(this);
+
+        painter.setPen(Qt::blue);
+        QRect screenRect = QRect(0,0,width(), height());
+        painter.drawText(screenRect, Qt::AlignCenter, "Start game");
+
+        painter.end();
+        break;
+    case GameStarted:
         // ball forces
         qreal stretch = (ball->position.length() - 6.0);
         QVector3D ballSpringForce;
@@ -324,64 +339,67 @@ void GLWidget::paintGL()
                 createCoin();
             }
         }
-
-
         ball->move(dt);
 
-    } // endif gameover
-    //    }
+
+        QPainter painter;
+        painter.begin(this);
+        painter.beginNativePainting();
+        painter.setRenderHint(QPainter::HighQualityAntialiasing, true);
+
+        glClearColor(0.88f, 0.88f, 0.9f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+
+        glFrontFace(GL_CW);
+        glCullFace(GL_FRONT);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+
+        mainModelView = QMatrix4x4(); // reset
+        // set up the main view (affects all objects)
+        mainModelView.perspective(40.0, aspectRatio, 1.0, 150.0);
+        mainModelView.lookAt(camera + offset,QVector3D(0,0,0) + offset,QVector3D(0.0,1.0,0.0));
+
+        foreach(Entity* coin, coins) {
+            coin->draw(mainModelView, lightPos);
+        }
+
+        ball->draw(mainModelView, lightPos);
+
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+
+        painter.endNativePainting();
+
+        painter.setPen(Qt::blue);
+        QString framesPerSecond;
+        framesPerSecond.setNum(frames /(frametime.elapsed() / 1000.0), 'f', 2);
+        painter.drawText(20, 40, framesPerSecond + " fps");
+        painter.drawText(width() - 200, 60, "score: " + QString::number(score));
+        painter.drawLine(project(QVector3D(0,0,0)), project(ball->position));
+
+        if(gameState) {
+            QFont font;
+            font.setPixelSize(height() / 4);
+            painter.setFont(font);
+            painter.drawText(QRectF(width() / 4, height() / 4, width() / 2, height() / 2),Qt::AlignCenter,tr("Game\nOver!"));
+        }
+        //    painter.drawText(20,80,"Verts: " + QString::number(cannon->model->vertices[20]));
+        //    painter.drawText(20, 80, "Verts: " + QString::number(cannon->vertices.first().x()));
 
 
-    QPainter painter;
-    painter.begin(this);
-    painter.beginNativePainting();
-    painter.setRenderHint(QPainter::HighQualityAntialiasing, true);
-
-    glClearColor(0.88f, 0.88f, 0.9f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-
-    glFrontFace(GL_CW);
-    glCullFace(GL_FRONT);
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
-
-    mainModelView = QMatrix4x4(); // reset
-    // set up the main view (affects all objects)
-    mainModelView.perspective(40.0, aspectRatio, 1.0, 150.0);
-    mainModelView.lookAt(camera + offset,QVector3D(0,0,0) + offset,QVector3D(0.0,1.0,0.0));
-
-    foreach(Entity* coin, coins) {
-        coin->draw(mainModelView, lightPos);
+        painter.end();
+        break;
+    case GameOver:
+        break;
+    default:
+        break;
     }
 
-    ball->draw(mainModelView, lightPos);
 
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-
-    painter.endNativePainting();
-
-    painter.setPen(Qt::blue);
-    QString framesPerSecond;
-    framesPerSecond.setNum(frames /(frametime.elapsed() / 1000.0), 'f', 2);
-    painter.drawText(20, 40, framesPerSecond + " fps");
-    painter.drawText(width() - 200, 60, "score: " + QString::number(score));
-    painter.drawLine(project(QVector3D(0,0,0)), project(ball->position));
-
-    if(gameOver) {
-        QFont font;
-        font.setPixelSize(height() / 4);
-        painter.setFont(font);
-        painter.drawText(QRectF(width() / 4, height() / 4, width() / 2, height() / 2),Qt::AlignCenter,tr("Game\nOver!"));
-    }
-    //    painter.drawText(20,80,"Verts: " + QString::number(cannon->model->vertices[20]));
-    //    painter.drawText(20, 80, "Verts: " + QString::number(cannon->vertices.first().x()));
-
-
-    painter.end();
 
 
     swapBuffers();
@@ -566,7 +584,7 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
         }
         inUi=false;
 
-        if(gameOver) { // make sure we have had the game over text shown for 1.5 seconds
+        if(gameState) { // make sure we have had the game over text shown for 1.5 seconds
             qDebug() << lastFrameTime - gameOverTime;
             if(lastFrameTime - gameOverTime > 1.5) {
                 resetGame();
@@ -614,6 +632,11 @@ void GLWidget::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         if (inUi) {
             ui->mouseRelease();
+        }
+        if(!dragging) {
+            if(gameState == GameMenu) {
+                startGame();
+            }
         }
         dragging = false;
     }
