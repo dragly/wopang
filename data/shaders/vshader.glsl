@@ -1,6 +1,7 @@
 attribute highp vec4 vertex;
 attribute highp vec4 texCoord;
 attribute mediump vec3 normal;
+attribute mediump vec3 lightPos;
 uniform mediump mat4 matrix;
 varying highp vec4 texc;
 varying mediump float angle;

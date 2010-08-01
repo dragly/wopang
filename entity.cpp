@@ -28,6 +28,7 @@ Entity::~Entity() {
 }
 
 void Entity::initEntity() {
+    newPos = new QVector3D();
     this->menu = NULL;
     scale = QVector3D(1,1,1);
     velocity = QVector3D(0,0,0);
@@ -89,9 +90,13 @@ void Entity::transform(QMatrix4x4 *modelview, int transformation) {
     }
 }
 
-void Entity::draw(QMatrix4x4 modelview) {
+void Entity::draw(QMatrix4x4 modelview, QVector3D *lightPos) {
+    newPos->setX(lightPos->x() - position.x());
+    newPos->setY(lightPos->y() - position.y());
+    newPos->setZ(lightPos->z() - position.z());
+
     transform(&modelview);
     if(model != NULL) {
-        model->draw(modelview);
+        model->draw(modelview, newPos);
     }
 }

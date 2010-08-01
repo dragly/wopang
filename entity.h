@@ -27,7 +27,7 @@ public:
     // functions
 
     void transform(QMatrix4x4 *modelview, int transformations = Rotate | Scale | Translate);
-    virtual void draw(QMatrix4x4 modelview);
+    virtual void draw(QMatrix4x4 modelview, QVector3D *lightPos);
 //    void setTexture(GLuint texture);
 //    bool setShaderFiles(QString fragmentShader, QString vertexShader);
 //    bool setVertexShaderFile(QString filename);
@@ -45,6 +45,7 @@ public:
     QVector3D velocity;
     QVector3D rotation;
     QVector3D scale;
+    QVector3D *newPos;
 
     qreal mass;
 

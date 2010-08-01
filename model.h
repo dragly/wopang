@@ -57,7 +57,7 @@ public:
     Model(QString filename);
 
     void load(QString filename);
-    void draw(QMatrix4x4 modelview);
+    void draw(QMatrix4x4 modelview, QVector3D *lightPos);
     void setTexture(GLuint texture);
     bool setShaderFiles(QString fragmentShader, QString vertexShader);
     bool setVertexShaderFile(QString filename);
@@ -75,6 +75,7 @@ private:
     QVector<QVector3D> vertices;
     QVector<QVector3D> normals;
     QVector<ModelGroup> groups;
+    int lightPosAttr;
     int vertexAttr;
     int normalAttr;
     int matrixUniform;

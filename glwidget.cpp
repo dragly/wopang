@@ -38,7 +38,7 @@ const qreal UnitSpeed = 40.0; // m/s
 const qreal UnitAcceleration = 10.0; // m/s^2
 const qreal UnitFrictionSide = 6.0;
 const qreal UnitFrictionAll = 2.0;
-const qreal EnemySpawnDistance = GLWidget::NodeSize * 8; // m
+const qreal EnemySpawnDistance = 20; // m
 const qreal RotateSpeed = 60; // degrees/s
 const qreal TowerRotateSpeed = 120; // degrees/s
 const qreal BulletSpeed = 40; // m/s
@@ -67,7 +67,7 @@ QVector3D Gravity(0, 0, -10); // m/s^2
 const qreal GLWidget::MaxHealth;
 
 // physics
-const qreal SpringConstant = 1;
+const qreal SpringConstant = 5;
 GLWidget::~GLWidget()
 {
 }
@@ -88,22 +88,25 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
     setAttribute(Qt::WA_PaintOnScreen);
     setAttribute(Qt::WA_NoSystemBackground);
     setAutoBufferSwap(false);
-    monkeyModel = new Model("data/objects/monkey1.obj");
-    boxModel = new Model("data/objects/box.obj");
-    cannonModel = new Model("data/objects/cannon.obj");
-    humanTankBodyModel = new Model("data/objects/tank-body.obj");
-    humanTankBodyModel->scale *= 0.5;
-    humanTankTowerModel = new Model("data/objects/tank-head.obj");
-    humanTankTowerModel->scale *= 0.5;
-    enemyTankBodyModel = new Model("data/objects/tank-body.obj");
-    enemyTankBodyModel->scale *= 0.5;
-    enemyTankTowerModel = new Model("data/objects/tank-head.obj");
-    enemyTankTowerModel->scale *= 0.5;
-    bulletModel = new Model("data/objects/bullet.obj");
-    bulletModel->scale *= 0.6;
-    nodeModel = new Model("data/objects/box.obj");
+    mdlMonkey = new Model("data/objects/monkey1.obj");
+    mdlBox = new Model("data/objects/box.obj");
+    mdlCannon = new Model("data/objects/cannon.obj");
+    mdlHumanTankBody = new Model("data/objects/tank-body.obj");
+    mdlHumanTankBody->scale *= 0.5;
+    mdlHumanTankTower = new Model("data/objects/tank-head.obj");
+    mdlHumanTankTower->scale *= 0.5;
+    mdlEnemyTankBody = new Model("data/objects/tank-body.obj");
+    mdlEnemyTankBody->scale *= 0.5;
+    mdlEnemyTankTower = new Model("data/objects/tank-head.obj");
+    mdlEnemyTankTower->scale *= 0.5;
+    mdlBullet = new Model("data/objects/bullet.obj");
+    mdlBullet->scale *= 0.6;
+    mdlNode = new Model("data/objects/box.obj");
+    mdlCoin = new Model("data/objects/coin.obj");
+    mdlBall = new Model("data/objects/ball.obj");
     // initial values
-    camera = QVector3D(0.1, -0.1, 40);
+    camera = QVector3D(0.0, 0.0, 40);
+    lightPos = new QVector3D(0.0,-0.3,10.0);
     sndExplosion = "data/sounds/bomb.wav";
     QStringList audioSamples;
     audioSamples << sndExplosion;
@@ -150,21 +153,21 @@ void GLWidget::resetGame() {
     gametime.start();
     bullets.clear();
     enemies.clear();
-    ball = new Entity(monkeyModel);
+    ball = new Entity(mdlBall);
     ball->position = QVector3D(0,-5,0);
     ball->mass = 0.5; // kg
-    Tank* cannon = new Tank(humanTankBodyModel, humanTankTowerModel);
+    Tank* cannon = new Tank(mdlHumanTankBody, mdlHumanTankTower);
     cannon->position = QVector3D(10,5,1);
     cannon->positionNode = closestNode(cannon->position);
     cannon->team = TeamHumans;
     selectedUnit = cannon;
     units.append(cannon);
-    Tank* cannon2 = new Tank(humanTankBodyModel, humanTankTowerModel);
+    Tank* cannon2 = new Tank(mdlHumanTankBody, mdlHumanTankTower);
     cannon2->position = QVector3D(1,1,1);
     cannon2->positionNode = closestNode(cannon2->position);
     cannon2->team = TeamHumans;
     units.append(cannon2);
-    Entity* building = new Entity(boxModel, Entity::TypeBuilding);
+    Entity* building = new Entity(mdlBox, Entity::TypeBuilding);
     building->position = QVector3D(-4,4,0);
     building->positionNode = closestNode(building->position);
     building->health = 1000;
@@ -173,7 +176,7 @@ void GLWidget::resetGame() {
     buildings.append(building);
     initEnemies();
     createCoin();
-    testUnit = new Entity(boxModel);
+    testUnit = new Entity(mdlBox);
     testUnit->scale *= 0.1;
 }
 
@@ -198,17 +201,17 @@ void GLWidget::resetEnemy(Entity* enemy) {
 
 void GLWidget::createEnemy() {
     qDebug() << "Creating enemy";
-    Entity *enemy = new Entity(tankBodyModel);
+    Entity *enemy = new Entity(mdlHumanTankBody);
     enemies.append(enemy);
     resetEnemy(enemy);
 }
 
 void GLWidget::createCoin() {
     qDebug() << "Creating coin";
-    Entity* coin = new Entity(monkeyModel);
+    Entity* coin = new Entity(mdlCoin);
     qreal randomAngle = qrand() * 360; // set random position
     coin->position = QVector3D(cos(randomAngle * M_PI / 180) * EnemySpawnDistance, sin(randomAngle * M_PI / 180) * EnemySpawnDistance, 0.0);
-    coin->velocity = -coin->position.normalized() * 20; // go towards the center
+    coin->velocity = -coin->position.normalized() * 7; // go towards the center
     coins.append(coin);
 }
 
@@ -220,15 +223,17 @@ void GLWidget::initializeGL ()
     program->addShaderFromSourceFile(QGLShader::Fragment, "data/shaders/fshader.glsl");
     program->addShaderFromSourceFile(QGLShader::Vertex, "data/shaders/vshader.glsl");
     program->link();
-    monkeyModel->setShaderProgram(program);
-    cannonModel->setShaderProgram(program);
-    bulletModel->setShaderProgram(program);
-    boxModel->setShaderProgram(program);
-    nodeModel->setShaderProgram(program);
-    humanTankBodyModel->setShaderProgram(program);
-    humanTankTowerModel->setShaderProgram(program);
-    enemyTankBodyModel->setShaderProgram(program);
-    enemyTankTowerModel->setShaderProgram(program);
+    mdlMonkey->setShaderProgram(program);
+    mdlCannon->setShaderProgram(program);
+    mdlBullet->setShaderProgram(program);
+    mdlBox->setShaderProgram(program);
+    mdlNode->setShaderProgram(program);
+    mdlHumanTankBody->setShaderProgram(program);
+    mdlHumanTankTower->setShaderProgram(program);
+    mdlEnemyTankBody->setShaderProgram(program);
+    mdlEnemyTankTower->setShaderProgram(program);
+    mdlCoin->setShaderProgram(program);
+    mdlBall->setShaderProgram(program);
     //    if(!monkeyModel->setShaderFiles("fshader.glsl","vshader.glsl")) {
     //        qDebug() << "Failed to set shader files.";
     //    }
@@ -243,26 +248,34 @@ void GLWidget::initializeGL ()
     //    }
     // end shaders
     // create and set textures
-    GLuint furTexture;
-    glGenTextures(1, &furTexture);
-    furTexture = bindTexture(QImage("data/textures/fur.resized.jpg"));
-    GLuint metalTexture;
-    glGenTextures(1, &metalTexture);
-    metalTexture = bindTexture(QImage("data/textures/metal.small.jpg"));
-    GLuint armyTexture;
-    glGenTextures(1, &armyTexture);
-    armyTexture = bindTexture(QImage("data/textures/army-texture.png"));
+    GLuint texFur;
+    glGenTextures(1, &texFur);
+    texFur = bindTexture(QImage("data/textures/fur.resized.jpg"));
+    GLuint texMetal;
+    glGenTextures(1, &texMetal);
+    texMetal = bindTexture(QImage("data/textures/metal.small.jpg"));
+    GLuint texGolden;
+    glGenTextures(1, &texGolden);
+    texGolden = bindTexture(QImage("data/textures/golden.jpg"));
+    GLuint texArmy;
+    glGenTextures(1, &texArmy);
+    texArmy = bindTexture(QImage("data/textures/army-texture.png"));
     GLuint yellowArmyTexture;
     glGenTextures(1, &yellowArmyTexture);
     yellowArmyTexture = bindTexture(QImage("data/textures/army-texture-yellow.png"));
-    boxModel->setTexture(furTexture);
-    monkeyModel->setTexture(furTexture);
-    cannonModel->setTexture(metalTexture);
-    bulletModel->setTexture(metalTexture);
-    humanTankBodyModel->setTexture(armyTexture);
-    humanTankTowerModel->setTexture(armyTexture);
-    enemyTankBodyModel->setTexture(yellowArmyTexture);
-    enemyTankTowerModel->setTexture(yellowArmyTexture);
+    GLuint texBlue;
+    glGenTextures(1, &texBlue);
+    texBlue = bindTexture(QImage("data/textures/bluetex.png"));
+    mdlBox->setTexture(texFur);
+    mdlMonkey->setTexture(texFur);
+    mdlCannon->setTexture(texMetal);
+    mdlBullet->setTexture(texMetal);
+    mdlHumanTankBody->setTexture(texArmy);
+    mdlHumanTankTower->setTexture(texArmy);
+    mdlEnemyTankBody->setTexture(yellowArmyTexture);
+    mdlEnemyTankTower->setTexture(yellowArmyTexture);
+    mdlCoin->setTexture(texGolden);
+    mdlBall->setTexture(texBlue);
     // end textures
 
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
@@ -279,15 +292,13 @@ void GLWidget::paintGL()
 {
     qreal currentFrameTime = gametime.elapsed() / 1000.0;
     qreal dt = currentFrameTime - lastFrameTime;
-    // Let's do physics!
-    bool collision = false;
     // general physics
     QAccelerometerReading *reading = accelerometer->reading();
     gravity = QVector3D(-reading->x(), -reading->y(), 0);
     QVector3D ballAcceleration;
     if(!gameOver) { // do logic
         // ball forces
-        qreal stretch = (ball->position.length() - 8.0);
+        qreal stretch = (ball->position.length() - 6.0);
         QVector3D ballSpringForce;
         if(stretch > 0) {
             ballSpringForce = - SpringConstant * stretch * ball->position.normalized();
@@ -301,10 +312,16 @@ void GLWidget::paintGL()
         // Calculate positions
         foreach(Entity* coin, coins) {
             coin->move(dt);
-            if((ball->position - coin->position).lengthSquared() < 4) {
+            if((ball->position - coin->position).lengthSquared() < 5) {
+                qDebug() << "Removing coin caught";
                 coins.removeAll(coin);
                 createCoin();
                 score += 100;
+            }
+            if(coin->position.lengthSquared() > 500) {
+                qDebug() << "Removing coin too far out" << coin->position.lengthSquared();
+                coins.removeAll(coin);
+                createCoin();
             }
         }
 
@@ -334,13 +351,13 @@ void GLWidget::paintGL()
     mainModelView = QMatrix4x4(); // reset
     // set up the main view (affects all objects)
     mainModelView.perspective(40.0, aspectRatio, 1.0, 150.0);
-    mainModelView.lookAt(camera + offset,QVector3D(0,0,0) + offset,QVector3D(0.0,0.0,1.0));
+    mainModelView.lookAt(camera + offset,QVector3D(0,0,0) + offset,QVector3D(0.0,1.0,0.0));
 
     foreach(Entity* coin, coins) {
-        coin->draw(mainModelView);
+        coin->draw(mainModelView, lightPos);
     }
 
-    ball->draw(mainModelView);
+    ball->draw(mainModelView, lightPos);
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -351,15 +368,8 @@ void GLWidget::paintGL()
     QString framesPerSecond;
     framesPerSecond.setNum(frames /(frametime.elapsed() / 1000.0), 'f', 2);
     painter.drawText(20, 40, framesPerSecond + " fps");
-    painter.drawText(20, 60, "cursor: " + QString::number(pressCursor.x()) + ", " + QString::number(pressCursor.y()) + ", " + QString::number(pressCursor.z()));
-    painter.drawText(20, 80, "Unit queue: " + QString::number(recruitqueue));
-    painter.drawText(20, 100, "Gravity: x: " + QString::number(gravity.x()) + "y: " + QString::number(gravity.y()) + "z: " + QString::number(gravity.z()));
-    painter.drawText(20, 120, "Acceleration: x: " + QString::number(ballAcceleration.x()) + "y: " + QString::number(ballAcceleration.y()) + "z: " + QString::number(ballAcceleration.z()));
-    painter.drawText(20, 140, "Velocity: x: " + QString::number(ball->velocity.x()) + "y: " + QString::number(ball->velocity.y()) + "z: " + QString::number(ball->velocity.z()));
     painter.drawText(width() - 200, 60, "score: " + QString::number(score));
-    painter.drawText(width() - 200, 80, "enemies: " + QString::number(enemies.count()));
-    painter.drawText(width() - 200, 100, "moveState: " + QString::number(selectedUnit->moveState));
-    painter.drawText(width() - 200, 120, "collision: " + QString::number(collision));
+    painter.drawLine(project(QVector3D(0,0,0)), project(ball->position));
 
     if(gameOver) {
         QFont font;

@@ -29,6 +29,7 @@ Model::Model(QString filename) {
     matrixUniform = 0;
     texCoordAttr = 0;
     textureUniform = 0;
+    lightPosAttr = 0;
     program = new QGLShaderProgram();
     load(filename);
     scale = QVector3D(1,1,1);
@@ -149,6 +150,7 @@ bool Model::initShaderProgram() {
     vertexAttr = program->attributeLocation("vertex");
     normalAttr = program->attributeLocation("normal");
     texCoordAttr = program->attributeLocation("texCoord");
+    lightPosAttr = program->attributeLocation("lightPos");
     matrixUniform = program->uniformLocation("matrix");
     textureUniform = program->uniformLocation("tex");
     if(!texCoordAttr) {
@@ -162,12 +164,13 @@ bool Model::initShaderProgram() {
     return true;
 }
 
-void Model::draw(QMatrix4x4 modelview) {
+void Model::draw(QMatrix4x4 modelview, QVector3D *lightPos) {
     modelview.scale(scale);
     program->bind();
     program->setUniformValue(matrixUniform, modelview);
 ////    program->setUniformValue(textureUniform, 0);    // use texture unit 0 - causes performance hit - doesn't appear to do anything
     glBindTexture(GL_TEXTURE_2D, texture);
+    program->enableAttributeArray(lightPosAttr);
     program->enableAttributeArray(vertexAttr);
     program->enableAttributeArray(normalAttr);
     program->enableAttributeArray(texCoordAttr);
@@ -176,12 +179,14 @@ void Model::draw(QMatrix4x4 modelview) {
             program->setAttributeArray(vertexAttr, triangle->vertices);
             program->setAttributeArray(texCoordAttr, triangle->texcoords);
             program->setAttributeArray(normalAttr, triangle->normals);
+            program->setAttributeArray(lightPosAttr, lightPos);
             glDrawArrays(GL_TRIANGLES, 0, 3); // only 3 vertices per triangle
         }
     }
     program->disableAttributeArray(vertexAttr);
     program->disableAttributeArray(normalAttr);
     program->disableAttributeArray(texCoordAttr);
+    program->disableAttributeArray(lightPosAttr);
     program->release();
 }
 void Model::setTexture(GLuint texture) {

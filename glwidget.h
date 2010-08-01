@@ -120,15 +120,19 @@ private:
 //    QHash<Entity*, QVector3D> bulletTargets;
     Entity* selectedUnit;
     Entity* ball;
-    Model *monkeyModel;
-    Model *boxModel;
-    Model *cannonModel;
-    Model *humanTankBodyModel;
-    Model *humanTankTowerModel;
-    Model *enemyTankBodyModel;
-    Model *enemyTankTowerModel;
-    Model *bulletModel;
-    Model *nodeModel;
+    Model *mdlMonkey;
+    Model *mdlBox;
+    Model *mdlCannon;
+    Model *mdlHumanTankBody;
+    Model *mdlHumanTankTower;
+    Model *mdlEnemyTankBody;
+    Model *mdlEnemyTankTower;
+    Model *mdlBullet;
+    Model *mdlNode;
+    Model *mdlCoin;
+    Model *mdlBall;
+
+    QVector3D *lightPos;
     bool gameOver;
     qreal gameOverTime;
     qreal lastFrameTime;
