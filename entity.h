@@ -24,6 +24,7 @@ public:
     void select();
     void initEntity();
     void move(qreal dt);
+    Model *model() {return model_;}
     // functions
 
     void transform(QMatrix4x4 *modelview, int transformations = Rotate | Scale | Translate);
@@ -62,7 +63,7 @@ public:
 
     Entity* movingAwayFrom;
 protected:
-    Model *model;
+    Model *model_;
     Window* menu; //export if we make building a child entity class
 };
 

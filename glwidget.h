@@ -58,7 +58,6 @@ public:
     QVector3D unProject(int x, int y);
     QVector3D unProject(int x, int y, QVector3D oldOffset);
     QPoint project(QVector3D position);
-    void startGame();
 
     static const qreal MaxHealth = 100.0;
     static const int MapSize = 30; // 2n x 2n nodes
@@ -79,11 +78,7 @@ protected:
 private:
     QVector3D rotation;
     QVector3D momentum;
-    void createEnemy();
-    void createCoin();
-    void initEnemies();
     void resetGame();
-    void resetEnemy(Entity* enemy);
     void fireBullet();
     void regenerateNodes();
     QTimer *timer;
@@ -118,9 +113,6 @@ private:
 
     QHash<Entity*, Entity*> bulletOwner;
 
-    Entity* testUnit;
-//    QHash<Entity*, QVector3D> bulletTargets;
-    Entity* selectedUnit;
     Entity* ball;
     Model *mdlMonkey;
     Model *mdlBox;
@@ -132,7 +124,14 @@ private:
     Model *mdlBullet;
     Model *mdlNode;
     Model *mdlCoin;
+    Model *mdlEnemy;
     Model *mdlBall;
+
+    QHash<Entity*, qreal> lastCollision;
+
+    // enemies and coins
+    QTimer *coinTimer;
+    QTimer *enemyTimer;
 
     QVector3D *lightPos;
     int gameState;
@@ -160,5 +159,7 @@ private:
     void keyPressEvent(QKeyEvent *event);
 public slots:
     void recruitUnit();
+    void createEnemy();
+    void createCoin();
 };
 #endif

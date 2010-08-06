@@ -38,7 +38,7 @@ const qreal UnitSpeed = 40.0; // m/s
 const qreal UnitAcceleration = 10.0; // m/s^2
 const qreal UnitFrictionSide = 6.0;
 const qreal UnitFrictionAll = 2.0;
-const qreal EnemySpawnDistance = 20; // m
+const qreal SpawnDistance = 25; // m
 const qreal RotateSpeed = 60; // degrees/s
 const qreal TowerRotateSpeed = 120; // degrees/s
 const qreal BulletSpeed = 40; // m/s
@@ -103,6 +103,7 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
     mdlBullet->scale *= 0.6;
     mdlNode = new Model("data/objects/box.obj");
     mdlCoin = new Model("data/objects/coin.obj");
+    mdlEnemy = new Model("data/objects/coin.obj");
     mdlBall = new Model("data/objects/ball.obj");
     // initial values
     camera = QVector3D(0.0, 0.0, 40);
@@ -135,10 +136,20 @@ GLWidget::GLWidget(QWidget *parent) : QGLWidget(parent)
     QObject::connect(timer, SIGNAL(timeout()), this, SLOT(updateGL()));
     timer->setInterval(1);
     timer->start();
+    // coinTimer
+    coinTimer = new QTimer(this);
+    connect(coinTimer, SIGNAL(timeout()), this, SLOT(createCoin()));
+    coinTimer->setInterval(3000);
+    coinTimer->start();
+    // enemyTimer
+    enemyTimer = new QTimer(this);
+    connect(enemyTimer, SIGNAL(timeout()), this, SLOT(createEnemy()));
+    enemyTimer->setInterval(3000);
+    enemyTimer->start();
 }
 
 void GLWidget::resetGame() {
-//    regenerateNodes();
+    //    regenerateNodes();
     // init all to zero (also avoids memory failures)
     lastFrameTime = 0.0;
     gameState = GameMenu;
@@ -156,67 +167,34 @@ void GLWidget::resetGame() {
     ball = new Entity(mdlBall);
     ball->position = QVector3D(0,-5,0);
     ball->mass = 0.5; // kg
-    Tank* cannon = new Tank(mdlHumanTankBody, mdlHumanTankTower);
-    cannon->position = QVector3D(10,5,1);
-    cannon->positionNode = closestNode(cannon->position);
-    cannon->team = TeamHumans;
-    selectedUnit = cannon;
-    units.append(cannon);
-    Tank* cannon2 = new Tank(mdlHumanTankBody, mdlHumanTankTower);
-    cannon2->position = QVector3D(1,1,1);
-    cannon2->positionNode = closestNode(cannon2->position);
-    cannon2->team = TeamHumans;
-    units.append(cannon2);
-    Entity* building = new Entity(mdlBox, Entity::TypeBuilding);
-    building->position = QVector3D(-4,4,0);
-    building->positionNode = closestNode(building->position);
-    building->health = 1000;
 
-    //building->addMenuPoitner(baseMenu);
-    buildings.append(building);
-    initEnemies();
-    createCoin();
-    testUnit = new Entity(mdlBox);
-    testUnit->scale *= 0.1;
-}
-
-void GLWidget::initEnemies() {
-    for(int i = 0; i < NumberOfEnemies; i++) {
-        createEnemy();
-    }
-}
-
-void GLWidget::startGame() {
     gameState = GameStarted;
 }
 
-void GLWidget::resetEnemy(Entity* enemy) {
-    qreal randomAngle = qrand() * 360; // set random position
-    enemy->position = QVector3D(cos(randomAngle * M_PI / 180) * EnemySpawnDistance, sin(randomAngle * M_PI / 180) * EnemySpawnDistance, 0.0); // set random position
-    enemy->positionNode = closestNode(enemy->position);
-    qDebug() << "Position enemy:" << enemy->position;
-    enemy->health = MaxHealth; // reset health
-    if(buildings.count() > 0)
-        enemy->currentTarget = buildings.first(); // attack any buildling
-    else if(units.count() > 0)
-        enemy->currentTarget = units.first(); // or attack any unit
-    enemy->orders = Entity::OrderAttack;
-}
-
 void GLWidget::createEnemy() {
-    qDebug() << "Creating enemy";
-    Entity *enemy = new Entity(mdlHumanTankBody);
-    enemies.append(enemy);
-    resetEnemy(enemy);
+    if(gameState == GameStarted) {
+        qDebug() << "Creating enemy";
+        Entity *enemy = new Entity(mdlEnemy);
+        qreal randomNumber = (qreal) qrand() / RAND_MAX; // set random position
+        qreal randomAngle = randomNumber * 360; // set random position
+        enemy->position = QVector3D(cos(randomAngle * M_PI / 180) * SpawnDistance, sin(randomAngle * M_PI / 180) * SpawnDistance, 0.0);
+        enemy->velocity = -enemy->position.normalized() * 7; // go towards the center
+        enemy->velocity.setX(enemy->velocity.x() + randomNumber * 2 - 1);
+        enemies.append(enemy);
+    }
 }
 
 void GLWidget::createCoin() {
-    qDebug() << "Creating coin";
-    Entity* coin = new Entity(mdlCoin);
-    qreal randomAngle = qrand() * 360; // set random position
-    coin->position = QVector3D(cos(randomAngle * M_PI / 180) * EnemySpawnDistance, sin(randomAngle * M_PI / 180) * EnemySpawnDistance, 0.0);
-    coin->velocity = -coin->position.normalized() * 7; // go towards the center
-    coins.append(coin);
+    if(gameState == GameStarted) {
+        qDebug() << "Creating coin";
+        Entity* coin = new Entity(mdlCoin);
+        qreal randomNumber = (qreal) qrand() / RAND_MAX; // set random position
+        qreal randomAngle = randomNumber * 360; // set random position
+        coin->position = QVector3D(cos(randomAngle * M_PI / 180) * SpawnDistance, sin(randomAngle * M_PI / 180) * SpawnDistance, 0.0);
+        coin->velocity = -coin->position.normalized() * 7; // go towards the center
+        coin->velocity.setX(coin->velocity.x() + randomNumber * 4 - 2);
+        coins.append(coin);
+    }
 }
 
 void GLWidget::initializeGL ()
@@ -237,6 +215,7 @@ void GLWidget::initializeGL ()
     mdlEnemyTankBody->setShaderProgram(program);
     mdlEnemyTankTower->setShaderProgram(program);
     mdlCoin->setShaderProgram(program);
+    mdlEnemy->setShaderProgram(program);
     mdlBall->setShaderProgram(program);
     //    if(!monkeyModel->setShaderFiles("fshader.glsl","vshader.glsl")) {
     //        qDebug() << "Failed to set shader files.";
@@ -279,6 +258,7 @@ void GLWidget::initializeGL ()
     mdlEnemyTankBody->setTexture(yellowArmyTexture);
     mdlEnemyTankTower->setTexture(yellowArmyTexture);
     mdlCoin->setTexture(texGolden);
+    mdlEnemy->setTexture(texArmy);
     mdlBall->setTexture(texBlue);
     // end textures
 
@@ -288,7 +268,6 @@ void GLWidget::initializeGL ()
     this->ui = new Ui(this);
     //    Window* menu = new Window(ui,0,0,0.2,0.3,Window::Center,true,"Menu");
     //    new Cbutton(menu,QPointF(0.015,0.05),"New game");
-    resetGame();
 
 }
 
@@ -300,8 +279,10 @@ void GLWidget::paintGL()
     QAccelerometerReading *reading = accelerometer->reading();
     gravity = QVector3D(-reading->x(), -reading->y(), 0);
     QVector3D ballAcceleration;
-    switch(gameState) {
-    case GameMenu:
+    QList<Entity*> allCoinsEnemies;
+    allCoinsEnemies.append(coins);
+    allCoinsEnemies.append(enemies);
+    if(gameState == GameMenu) {
         QPainter painter;
         painter.begin(this);
 
@@ -310,8 +291,7 @@ void GLWidget::paintGL()
         painter.drawText(screenRect, Qt::AlignCenter, "Start game");
 
         painter.end();
-        break;
-    case GameStarted:
+    } else if(gameState == GameStarted) {
         // ball forces
         qreal stretch = (ball->position.length() - 6.0);
         QVector3D ballSpringForce;
@@ -324,21 +304,52 @@ void GLWidget::paintGL()
 
         ball->velocity = ball->velocity + ballAcceleration * dt;
 
+        QList<Entity*> collideList;
+        collideList.append(allCoinsEnemies);
+
+        // collision detection for spheres, using formulas from http://www.applet-magic.com/collision.htm
+        foreach(Entity* entity, collideList) {
+            foreach(Entity* secondEntity, collideList) {
+                if(entity != secondEntity) {
+                    if(!lastCollision.contains(entity) || currentFrameTime - lastCollision.value(entity) > 100) {
+                        qreal maxSize = entity->model()->size().x() / 2 + secondEntity->model()->size().x() / 2; // assuming circular models
+                        if((entity->position - secondEntity->position).lengthSquared() < maxSize * maxSize) {
+                            QVector3D kUnit = (entity->position - secondEntity->position).normalized();
+                            qreal a = (2 * QVector3D::dotProduct(kUnit, (entity->velocity - secondEntity->velocity))) / (1/entity->mass + 1/secondEntity->mass);
+                            qDebug() << a;
+                            entity->velocity = entity->velocity + (a/entity->mass) * kUnit;
+                            secondEntity->velocity = secondEntity->velocity - (a/secondEntity->mass) * kUnit;
+                            lastCollision.insert(entity, currentFrameTime);
+                            lastCollision.insert(secondEntity, currentFrameTime);
+                        }
+                    }
+                }
+            }
+            collideList.removeAll(entity);
+        }
         // Calculate positions
         foreach(Entity* coin, coins) {
             coin->move(dt);
-            if((ball->position - coin->position).lengthSquared() < 5) {
-                qDebug() << "Removing coin caught";
+            if((ball->position - coin->position).lengthSquared() < ball->model()->size().x() * ball->model()->size().x()) {
+                qDebug() << "Caugth coin!";
                 coins.removeAll(coin);
-                createCoin();
                 score += 100;
             }
-            if(coin->position.lengthSquared() > 500) {
-                qDebug() << "Removing coin too far out" << coin->position.lengthSquared();
+            if(coin->position.lengthSquared() > SpawnDistance * SpawnDistance * 2) {
                 coins.removeAll(coin);
-                createCoin();
             }
         }
+        foreach(Entity* enemy, enemies) {
+            enemy->move(dt);
+            if((ball->position - enemy->position).lengthSquared() < ball->model()->size().x() * ball->model()->size().x()) {
+                qDebug() << "Killed by enemy";
+                gameState = GameOver;
+            }
+            if(enemy->position.lengthSquared() > SpawnDistance * SpawnDistance * 2) {
+                enemies.removeAll(enemy);
+            }
+        }
+
         ball->move(dt);
 
 
@@ -366,6 +377,9 @@ void GLWidget::paintGL()
         foreach(Entity* coin, coins) {
             coin->draw(mainModelView, lightPos);
         }
+        foreach(Entity* enemy, enemies) {
+            enemy->draw(mainModelView, lightPos);
+        }
 
         ball->draw(mainModelView, lightPos);
 
@@ -381,26 +395,20 @@ void GLWidget::paintGL()
         painter.drawText(width() - 200, 60, "score: " + QString::number(score));
         painter.drawLine(project(QVector3D(0,0,0)), project(ball->position));
 
-        if(gameState) {
-            QFont font;
-            font.setPixelSize(height() / 4);
-            painter.setFont(font);
-            painter.drawText(QRectF(width() / 4, height() / 4, width() / 2, height() / 2),Qt::AlignCenter,tr("Game\nOver!"));
-        }
         //    painter.drawText(20,80,"Verts: " + QString::number(cannon->model->vertices[20]));
         //    painter.drawText(20, 80, "Verts: " + QString::number(cannon->vertices.first().x()));
 
 
         painter.end();
-        break;
-    case GameOver:
-        break;
-    default:
-        break;
+    } else if(gameState == GameOver) {
+        QPainter painter;
+        painter.begin(this);
+        QFont font;
+        font.setPixelSize(height() / 4);
+        painter.setFont(font);
+        painter.drawText(QRectF(width() / 4, height() / 4, width() / 2, height() / 2),Qt::AlignCenter,tr("Game\nOver!"));
+        painter.end();
     }
-
-
-
 
     swapBuffers();
 
@@ -584,7 +592,7 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
         }
         inUi=false;
 
-        if(gameState) { // make sure we have had the game over text shown for 1.5 seconds
+        if(gameState == GameOver) { // make sure we have had the game over text shown for 1.5 seconds
             qDebug() << lastFrameTime - gameOverTime;
             if(lastFrameTime - gameOverTime > 1.5) {
                 resetGame();
@@ -597,7 +605,6 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
         dragCursor = pressCursor;
         dragStartPosition = event->pos();
         pressOffset = offset;
-        testUnit->position = unProject(event->x(), event->y());
         lastDragOffset = offset;
     }
 }
@@ -610,19 +617,8 @@ void GLWidget::mouseMoveEvent(QMouseEvent* event) {
             ui->move();
             return;
         }
-        // this should be improved. This method is not accurate.
-        QVector3D currentCursor = unProject(event->x(), event->y());
-        QVector3D currentDragOffset = offset;
-        if(dragging) {
-            offset -= (currentCursor - dragCursor) - (currentDragOffset - lastDragOffset); // offset is negative to get the "drag and drop"-feeling
-            lastDragOffset = currentDragOffset;
-            dragCursor = currentCursor;
-        } else {
-            if(holdtime.elapsed() > 1000) { // TODO: selection mode
-
-            } else if((QVector3D(dragStartPosition) - QVector3D(event->pos())).length() > DragDropTreshold) { // if we have been dragging for more than ten pixels
-                dragging = true;
-            }
+        if((QVector3D(dragStartPosition) - QVector3D(event->pos())).length() > DragDropTreshold) { // if we have been dragging for more than ten pixels
+            dragging = true;
         }
     }
 }
@@ -635,7 +631,7 @@ void GLWidget::mouseReleaseEvent(QMouseEvent *event) {
         }
         if(!dragging) {
             if(gameState == GameMenu) {
-                startGame();
+                resetGame();
             }
         }
         dragging = false;

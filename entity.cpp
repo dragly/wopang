@@ -13,14 +13,14 @@ Entity::Entity() {
 Entity::Entity(Model *model) {
     initEntity();
     type = TypeUnit;
-    this->model = model;
+    this->model_ = model;
 }
 
 Entity::Entity(Model *model, int type) {
     initEntity();
     this->type = type;
     this->moveTarget = NULL;
-    this->model = model;
+    this->model_ = model;
 }
 Entity::~Entity() {
     if (this->menu != NULL)
@@ -28,6 +28,7 @@ Entity::~Entity() {
 }
 
 void Entity::initEntity() {
+    mass = 1;
     newPos = new QVector3D();
     this->menu = NULL;
     scale = QVector3D(1,1,1);
@@ -73,7 +74,7 @@ bool Entity::isMoving() {
 }
 
 void Entity::setModel(Model *model) {
-    this->model = model;
+    this->model_ = model;
 }
 
 void Entity::transform(QMatrix4x4 *modelview, int transformation) {
@@ -96,7 +97,7 @@ void Entity::draw(QMatrix4x4 modelview, QVector3D *lightPos) {
     newPos->setZ(lightPos->z() - position.z());
 
     transform(&modelview);
-    if(model != NULL) {
-        model->draw(modelview, newPos);
+    if(model_ != NULL) {
+        model_->draw(modelview, newPos);
     }
 }
