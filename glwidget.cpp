@@ -166,7 +166,7 @@ void GLWidget::resetGame() {
     enemies.clear();
     ball = new Entity(mdlBall);
     ball->position = QVector3D(0,-5,0);
-    ball->mass = 0.5; // kg
+    ball->mass = 1; // kg
 
     gameState = GameStarted;
 }
@@ -180,6 +180,7 @@ void GLWidget::createEnemy() {
         enemy->position = QVector3D(cos(randomAngle * M_PI / 180) * SpawnDistance, sin(randomAngle * M_PI / 180) * SpawnDistance, 0.0);
         enemy->velocity = -enemy->position.normalized() * 7; // go towards the center
         enemy->velocity.setX(enemy->velocity.x() + randomNumber * 2 - 1);
+        enemy->mass = 0.5; // kg
         enemies.append(enemy);
     }
 }
@@ -193,6 +194,7 @@ void GLWidget::createCoin() {
         coin->position = QVector3D(cos(randomAngle * M_PI / 180) * SpawnDistance, sin(randomAngle * M_PI / 180) * SpawnDistance, 0.0);
         coin->velocity = -coin->position.normalized() * 7; // go towards the center
         coin->velocity.setX(coin->velocity.x() + randomNumber * 4 - 2);
+        coin->mass = 0.25; // kg
         coins.append(coin);
     }
 }
@@ -306,21 +308,25 @@ void GLWidget::paintGL()
 
         QList<Entity*> collideList;
         collideList.append(allCoinsEnemies);
+        collideList.append(ball);
 
         // collision detection for spheres, using formulas from http://www.applet-magic.com/collision.htm
         foreach(Entity* entity, collideList) {
             foreach(Entity* secondEntity, collideList) {
                 if(entity != secondEntity) {
-                    if(!lastCollision.contains(entity) || frames - lastCollision.value(entity) > 2) { // avoid double collisions
-                        qreal maxSize = entity->model()->size().x() / 2 + secondEntity->model()->size().x() / 2; // assuming circular models
-                        if((entity->position - secondEntity->position).lengthSquared() < maxSize * maxSize) {
-                            QVector3D kUnit = (entity->position - secondEntity->position).normalized();
-                            qreal a = (2 * QVector3D::dotProduct(kUnit, (entity->velocity - secondEntity->velocity))) / (1/entity->mass + 1/secondEntity->mass);
-                            qDebug() << a;
-                            entity->velocity = entity->velocity - (a/entity->mass) * kUnit;
-                            secondEntity->velocity = secondEntity->velocity + (a/secondEntity->mass) * kUnit;
-                            lastCollision.insert(entity, frames);
-                            lastCollision.insert(secondEntity, frames);
+                    qreal maxSize = entity->model()->size().x() / 2 + secondEntity->model()->size().x() / 2; // assuming circular models
+                    if((entity->position - secondEntity->position).lengthSquared() < maxSize * maxSize) {
+                        QVector3D kUnit = (entity->position - secondEntity->position).normalized();
+                        qreal a = (2 * QVector3D::dotProduct(kUnit, (entity->velocity - secondEntity->velocity))) / (1/entity->mass + 1/secondEntity->mass);
+                        qDebug() << a;
+                        entity->velocity = entity->velocity - (a/entity->mass) * kUnit;
+                        secondEntity->velocity = secondEntity->velocity + (a/secondEntity->mass) * kUnit;
+                        if((entity == ball && coins.contains(secondEntity)) || (secondEntity == ball && coins.contains(entity))) {
+                            qDebug() << "Hit coin!";
+                            score += (entity->velocity - secondEntity->velocity).length(); // score depends on how hard you hit
+                        } else if((entity == ball && enemies.contains(secondEntity)) || (secondEntity == ball && enemies.contains(entity))) {
+                            qDebug() << "Killed by enemy";
+                            gameState = GameOver;
                         }
                     }
                 }
@@ -328,25 +334,11 @@ void GLWidget::paintGL()
             collideList.removeAll(entity);
         }
         // Calculate positions
-        foreach(Entity* coin, coins) {
-            coin->move(dt);
-            if((ball->position - coin->position).lengthSquared() < ball->model()->size().x() * ball->model()->size().x()) {
-                qDebug() << "Caugth coin!";
-                coins.removeAll(coin);
-                score += 100;
-            }
-            if(coin->position.lengthSquared() > SpawnDistance * SpawnDistance * 2) {
-                coins.removeAll(coin);
-            }
-        }
-        foreach(Entity* enemy, enemies) {
-            enemy->move(dt);
-            if((ball->position - enemy->position).lengthSquared() < ball->model()->size().x() * ball->model()->size().x()) {
-                qDebug() << "Killed by enemy";
-                gameState = GameOver;
-            }
-            if(enemy->position.lengthSquared() > SpawnDistance * SpawnDistance * 2) {
-                enemies.removeAll(enemy);
+        foreach(Entity* entity, allCoinsEnemies) {
+            entity->move(dt);
+            if(entity->position.lengthSquared() > SpawnDistance * SpawnDistance * 2) {
+                coins.removeAll(entity);
+                enemies.removeAll(entity);
             }
         }
 
