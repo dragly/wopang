@@ -311,16 +311,16 @@ void GLWidget::paintGL()
         foreach(Entity* entity, collideList) {
             foreach(Entity* secondEntity, collideList) {
                 if(entity != secondEntity) {
-                    if(!lastCollision.contains(entity) || currentFrameTime - lastCollision.value(entity) > 100) {
+                    if(!lastCollision.contains(entity) || frames - lastCollision.value(entity) > 2) { // avoid double collisions
                         qreal maxSize = entity->model()->size().x() / 2 + secondEntity->model()->size().x() / 2; // assuming circular models
                         if((entity->position - secondEntity->position).lengthSquared() < maxSize * maxSize) {
                             QVector3D kUnit = (entity->position - secondEntity->position).normalized();
                             qreal a = (2 * QVector3D::dotProduct(kUnit, (entity->velocity - secondEntity->velocity))) / (1/entity->mass + 1/secondEntity->mass);
                             qDebug() << a;
-                            entity->velocity = entity->velocity + (a/entity->mass) * kUnit;
-                            secondEntity->velocity = secondEntity->velocity - (a/secondEntity->mass) * kUnit;
-                            lastCollision.insert(entity, currentFrameTime);
-                            lastCollision.insert(secondEntity, currentFrameTime);
+                            entity->velocity = entity->velocity - (a/entity->mass) * kUnit;
+                            secondEntity->velocity = secondEntity->velocity + (a/secondEntity->mass) * kUnit;
+                            lastCollision.insert(entity, frames);
+                            lastCollision.insert(secondEntity, frames);
                         }
                     }
                 }
